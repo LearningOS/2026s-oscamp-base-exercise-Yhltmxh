@@ -64,7 +64,7 @@ impl<T> RwLock<T> {
     pub fn read(&self) -> RwLockReadGuard<'_, T> {
         loop {
             let cur = self.state.load(Ordering::Acquire);
-            if cur & WRITER_HOLDING > 0 || cur & WRITER_WAITING > 0 || cur & READER_MASK == READER_MASK {
+            if cur & (WRITER_HOLDING | WRITER_WAITING) > 0 || cur & READER_MASK == READER_MASK {
                 core::hint::spin_loop();
                 continue;
             }
@@ -91,6 +91,10 @@ impl<T> RwLock<T> {
                 continue;
             }
             match self.state.compare_exchange(WRITER_WAITING, WRITER_HOLDING, Ordering::AcqRel, Ordering::Acquire) {
+                Ok(_) => return RwLockWriteGuard { lock: self },
+                Err(_) => core::hint::spin_loop()
+            }
+            match self.state.compare_exchange(0, WRITER_HOLDING, Ordering::AcqRel, Ordering::Acquire) {
                 Ok(_) => return RwLockWriteGuard { lock: self },
                 Err(_) => core::hint::spin_loop()
             }
