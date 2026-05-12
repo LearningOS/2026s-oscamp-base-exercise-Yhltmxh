@@ -202,6 +202,7 @@ impl Scheduler {
                 unsafe {
                     switch_context(&mut *cur_ctx, & *next_ctx);
                 }
+                break;
             }
             next = (next + 1) % self.threads.len();
         }
